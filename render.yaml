@@ -2,7 +2,7 @@ services:
   - type: web
     name: quiz-63
     runtime: python
-    plan: starter
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn 'app:create_app()' --bind 0.0.0.0:$PORT --workers 1 --threads 4
     healthCheckPath: /
@@ -15,9 +15,3 @@ services:
         generateValue: true
       - key: COOKIE_SECURE
         value: '1'
-      - key: DATA_DIR
-        value: /var/data
-    disk:
-      name: quiz-data
-      mountPath: /var/data
-      sizeGB: 1
