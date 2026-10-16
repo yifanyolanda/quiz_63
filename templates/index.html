@@ -1,0 +1,23 @@
+{% extends 'base.html' %}{% block content %}<p class="muted">话题知识小测</p><div id="app">正在加载…</div><p id="error" class="error" role="alert"></p>{% endblock %}
+{% block scripts %}<script>
+const csrf={{ session.csrf|tojson }};let state,offset=0,busy=false,timer;
+const box=document.getElementById('app'),err=document.getElementById('error');
+function el(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e}
+function button(text,fn){const b=el('button',text);b.onclick=fn;box.append(b);return b}
+async function call(action,data={}){if(busy)return;busy=true;err.textContent='';try{const r=await fetch('/api/state',{method:action?'POST':'GET',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:action?JSON.stringify({action,...data}):undefined});if(!r.ok)throw Error('请求失败，请重试');state=await r.json();offset=state.now?state.now*1000-Date.now():0;render();if(state.error)err.textContent=state.error}catch(e){err.textContent='网络连接失败，请刷新重试；计时不会暂停。'}finally{busy=false}}
+function render(){clearInterval(timer);box.replaceChildren();
+if(state.stage==='blocked'){box.append(el('h1','参与机会已结束'),el('p','两次填写 ID 均已超时。'));return}
+if(state.stage==='id'){
+box.append(el('h1','填写你的群内 ID'));
+if(!state.deadline){box.append(el('p','第一次填写已超时，还有一次填写机会。'));button('重新填写',()=>call('retry'));return}
+box.append(el('p','请填写群内使用的 ID，供管理员人工核验。','muted'));
+const t=el('p','','timer'),form=el('form'),input=el('input');input.placeholder='群内 ID';input.maxLength=200;input.required=true;input.autocomplete='off';input.setAttribute('aria-label','群内 ID');form.append(input);const b=el('button','确认 ID');b.type='submit';form.append(b);form.onsubmit=e=>{e.preventDefault();call('id',{id:input.value})};box.append(t,form);count(t);return}
+if(state.stage==='ready'){box.append(el('h1','准备好了吗？'),el('p',state.id,'identity'),el('p','共 3 道单选题，每题 10 秒。选中后须点击提交，超时算错。开始即消耗一次考试机会，退出不退回。'),el('p',`剩余 ${2-state.attempts} 次考试机会`,'muted'));button('开始考试',()=>call('start'));return}
+if(state.stage==='exam'){
+box.append(el('p',`第 ${state.attempt} 次考试 · ${state.number} / 3`,'muted'));const t=el('p','','timer');box.append(t,el('h2',state.question));let selected=null;
+state.options.forEach((v,i)=>{const label=el('label',undefined,'option'),radio=el('input');radio.type='radio';radio.name='answer';radio.value='ABCD'[i];radio.onchange=()=>{selected=radio.value;submit.disabled=false};label.append(radio,el('span',`${radio.value}. ${v}`));box.append(label)});
+const submit=button('提交答案',()=>call('answer',{number:state.number,answer:selected}));submit.disabled=true;count(t);return}
+if(state.stage==='result'){box.append(el('h1','考试结果'),el('p',state.result.id,'identity'),el('div',`${state.result.score} / 3`,'score'),el('p','答对题数'),el('p','请截图发送给管理员人工审核。','muted'));if(state.attempts<2)button('参加第二次考试',()=>call('retry'));else box.append(el('p','两次考试均已完成。','muted'))}}
+function count(node){const tick=()=>{const seconds=Math.max(0,Math.ceil((state.deadline*1000-Date.now()-offset)/1000));node.textContent=`剩余 ${seconds} 秒`;if(seconds===0){clearInterval(timer);call()}};timer=setInterval(tick,200);tick()}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)call()});call();
+</script>{% endblock %}

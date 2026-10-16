@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: quiz-63
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn 'app:create_app()' --bind 0.0.0.0:$PORT --workers 1 --threads 4
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.14
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: '1'
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: quiz-data
+      mountPath: /var/data
+      sizeGB: 1
